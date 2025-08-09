@@ -1,17 +1,22 @@
-// index.js (or server.js)
+// server.js
+import express from "express";
+import mongoose from "mongoose";
 import cors from "cors";
 import dotenv from "dotenv";
-require('dotenv').config();
-const express = require('express');
-const mongoose = require('mongoose');
-const cors = require('cors');
+
+dotenv.config();
 
 const app = express();
 app.use(express.json());
-// In server.js BEFORE routes
+
+// CORS setup
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || origin.endsWith(".vercel.app")) {
+    const allowedOrigins = [
+      "http://localhost:3000", // for local dev
+      "https://todo-frontend.vercel.app" // your main production URL
+    ];
+    if (!origin || allowedOrigins.includes(origin) || origin.endsWith(".vercel.app")) {
       callback(null, true);
     } else {
       callback(new Error("Not allowed by CORS"));
@@ -21,16 +26,14 @@ app.use(cors({
   credentials: true
 }));
 
-
-
 // MongoDB connection
 mongoose.connect(process.env.MONGODB_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true
 }).then(() => {
-  console.log('✅ MongoDB connected');
+  console.log("✅ MongoDB connected");
 }).catch(err => {
-  console.error('❌ DB connection error:', err);
+  console.error("❌ DB connection error:", err);
 });
 
 // Schema
@@ -40,58 +43,43 @@ const todolistSchema = new mongoose.Schema({
 });
 
 // Model
-const todolistModel = mongoose.model('ToDo', todolistSchema);
+const ToDo = mongoose.model("ToDo", todolistSchema);
 
-// Create a new todo item
-app.post('/todos', async (req, res) => {
-  const { title, description } = req.body;
+// Routes
+app.post("/todos", async (req, res) => {
   try {
-    const newTodo = new todolistModel({ title, description });
+    const newTodo = new ToDo(req.body);
     await newTodo.save();
     res.status(201).json(newTodo);
   } catch (error) {
-    console.error(error);
     res.status(500).json({ message: error.message });
   }
 });
 
-// Get all items
-app.get('/todos', async (req, res) => {
+app.get("/todos", async (req, res) => {
   try {
-    const todos = await todolistModel.find();
+    const todos = await ToDo.find();
     res.json(todos);
   } catch (error) {
-    console.error(error);
     res.status(500).json({ message: error.message });
   }
 });
 
-// Update todo
-app.put('/todos/:id', async (req, res) => {
-  const { title, description } = req.body;
+app.put("/todos/:id", async (req, res) => {
   try {
-    const updatedToDo = await todolistModel.findByIdAndUpdate(
-      req.params.id,
-      { title, description },
-      { new: true }
-    );
-    if (!updatedToDo) {
-      return res.status(404).json({ message: 'ToDo not found' });
-    }
-    res.json(updatedToDo);
+    const updated = await ToDo.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    if (!updated) return res.status(404).json({ message: "ToDo not found" });
+    res.json(updated);
   } catch (error) {
-    console.error(error);
     res.status(500).json({ message: error.message });
   }
 });
 
-// Delete todo
-app.delete('/todos/:id', async (req, res) => {
+app.delete("/todos/:id", async (req, res) => {
   try {
-    await todolistModel.findByIdAndDelete(req.params.id);
+    await ToDo.findByIdAndDelete(req.params.id);
     res.status(204).end();
   } catch (error) {
-    console.error(error);
     res.status(500).json({ message: error.message });
   }
 });
