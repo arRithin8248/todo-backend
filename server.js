@@ -1,4 +1,6 @@
 // index.js (or server.js)
+import cors from "cors";
+import dotenv from "dotenv";
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
